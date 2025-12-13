@@ -5,12 +5,19 @@ from pathlib import Path
 from typing import Iterable, Literal
 
 from PIL import Image
+from PIL import ImageSequence
 from rich.color import Color
 from rich.console import RenderableType
 from rich.style import Style
 from rich.text import Text
 
 AvatarBackend = Literal["auto", "rich_pixels", "halfblock"]
+
+
+@dataclass(frozen=True)
+class RenderedFrame:
+    renderable: RenderableType
+    duration_s: float
 
 
 def iter_frame_paths(frames_dir: Path) -> list[Path]:
@@ -114,26 +121,34 @@ class AvatarRenderer:
         width_chars: int = 32,
         height_chars: int = 16,
         backend: AvatarBackend = "auto",
+        default_fps: float = 10.0,
     ) -> None:
         self.frames_dir = frames_dir
         self.width_chars = width_chars
         self.height_chars = height_chars
         self.backend = backend
+        self.default_fps = default_fps
 
-    def load_and_render(self) -> list[RenderableType]:
+    def load_and_render(self) -> list[RenderedFrame]:
+        if self.frames_dir.is_file() and self.frames_dir.suffix.lower() == ".gif":
+            return self._load_and_render_gif(self.frames_dir)
+
         paths = iter_frame_paths(self.frames_dir)
         if not paths:
             return []
 
         images = [Image.open(p) for p in paths]
         try:
-            return self._render_images(images)
+            renderables = self._render_images(images)
         finally:
             for im in images:
                 try:
                     im.close()
                 except Exception:
                     pass
+
+        duration_s = 1.0 / max(1e-6, float(self.default_fps))
+        return [RenderedFrame(renderable=r, duration_s=duration_s) for r in renderables]
 
     def _render_images(self, images: Iterable[Image.Image]) -> list[RenderableType]:
         if self.backend in {"auto", "rich_pixels"}:
@@ -174,3 +189,39 @@ class AvatarRenderer:
             rendered.append(pixels)
         return rendered
 
+    def _load_and_render_gif(self, gif_path: Path) -> list[RenderedFrame]:
+        with Image.open(gif_path) as im:
+            frames: list[Image.Image] = []
+            durations: list[float] = []
+
+            base = Image.new("RGBA", im.size, (0, 0, 0, 0))
+            previous = base.copy()
+
+            for frame in ImageSequence.Iterator(im):
+                duration_ms = frame.info.get("duration") or im.info.get("duration") or 100
+                try:
+                    duration_s = max(0.02, float(duration_ms) / 1000.0)
+                except Exception:
+                    duration_s = 0.1
+
+                try:
+                    disposal = int(getattr(frame, "disposal_method", 0) or frame.info.get("disposal") or 0)
+                except Exception:
+                    disposal = 0
+
+                previous = base.copy()
+                rgba = frame.convert("RGBA")
+                composed = Image.alpha_composite(base, rgba)
+
+                frames.append(composed)
+                durations.append(duration_s)
+
+                if disposal == 2:
+                    base = Image.new("RGBA", im.size, (0, 0, 0, 0))
+                elif disposal == 3:
+                    base = previous
+                else:
+                    base = composed
+
+            renderables = self._render_images(frames)
+            return [RenderedFrame(renderable=r, duration_s=durations[i]) for i, r in enumerate(renderables)]

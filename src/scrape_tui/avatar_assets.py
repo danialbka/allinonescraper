@@ -27,9 +27,23 @@ def ensure_frames_dir(frames_dir: Path, *, frame_count: int = 48) -> Path:
     offline animation into a cache directory and return that path.
     """
 
+    if frames_dir.is_file() and frames_dir.suffix.lower() == ".gif":
+        return frames_dir
+
     existing = iter_frame_paths(frames_dir)
     if existing:
         return frames_dir
+
+    if frames_dir.is_dir():
+        try:
+            gifs = sorted(
+                [p for p in frames_dir.parent.iterdir() if p.is_file() and p.suffix.lower() == ".gif"],
+                key=lambda p: p.name,
+            )
+        except Exception:
+            gifs = []
+        if gifs:
+            return gifs[0]
 
     cache_dir = generated_frames_dir()
     if len(iter_frame_paths(cache_dir)) >= 2:
@@ -102,4 +116,3 @@ def _generate_placeholder_frames(
         img = img.filter(ImageFilter.GaussianBlur(radius=0.6))
         out_path = out_dir / f"{i:03d}.png"
         img.save(out_path)
-

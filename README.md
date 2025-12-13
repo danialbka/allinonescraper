@@ -49,6 +49,7 @@ allinonescraper
 When you start `scrape` / `allinonescraper` interactively (no URL argument), it launches a Textual UI with an animated avatar panel (Unicode + ANSI truecolor; no Kitty/SIXEL).
 
 - Add frames to `./assets/lain_frames/` named `000.png`, `001.png`, ...
+- Or point `--frames-dir` at a `.gif` (or drop a `.gif` into `./assets/` and it will be auto-picked).
 - If you don't add frames, it auto-generates a small placeholder animation into `~/.cache/scrape_tui/avatar_frames/`.
 - Force the old prompt-based UI: `scrape --ui classic`
 

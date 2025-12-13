@@ -7,7 +7,7 @@ from rich.text import Text
 from textual.reactive import reactive
 from textual.widget import Widget
 
-from .avatar_renderer import AvatarBackend, AvatarRenderer
+from .avatar_renderer import AvatarBackend, AvatarRenderer, RenderedFrame
 
 
 class AvatarWidget(Widget):
@@ -39,9 +39,10 @@ class AvatarWidget(Widget):
         self.fps = fps
         self.backend = backend
 
-        self._frames = []
+        self._frames: list[RenderedFrame] = []
         self._frame_index = 0
         self._load_seconds: float | None = None
+        self._timer = None
 
     @property
     def frames_loaded(self) -> int:
@@ -58,18 +59,34 @@ class AvatarWidget(Widget):
             width_chars=self.width_chars,
             height_chars=self.height_chars,
             backend=self.backend,
+            default_fps=self.fps,
         ).load_and_render()
         self._load_seconds = perf_counter() - started
 
-        if self._frames and self.fps > 0:
-            self.set_interval(1.0 / self.fps, self._advance_frame)
+        if self._frames:
+            self._schedule_next()
         self.refresh()
+
+    def _schedule_next(self) -> None:
+        if not self._frames:
+            return
+        if self._timer is not None:
+            try:
+                self._timer.stop()
+            except Exception:
+                pass
+
+        duration = float(self._frames[self._frame_index].duration_s)
+        if duration <= 0:
+            duration = 1.0 / max(1e-6, float(self.fps))
+        self._timer = self.set_timer(duration, self._advance_frame)
 
     def _advance_frame(self) -> None:
         if not self._frames:
             return
         self._frame_index = (self._frame_index + 1) % len(self._frames)
         self.refresh()
+        self._schedule_next()
 
     def render(self):
         if not self._frames:
@@ -78,5 +95,4 @@ class AvatarWidget(Widget):
             else:
                 msg = f"No PNG frames in:\n{self.frames_dir}"
             return Text(msg, style="dim")
-        return self._frames[self._frame_index]
-
+        return self._frames[self._frame_index].renderable

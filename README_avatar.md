@@ -7,6 +7,12 @@ This is a minimal Textual app that renders an animated PNG avatar in a fixed-siz
 1. Put PNG frames in `./assets/lain_frames/`
 2. Name them `000.png`, `001.png`, `002.png`, ...
 
+Or use a GIF:
+
+```bash
+scrape --ui textual --frames-dir ./assets/your_avatar.gif
+```
+
 The demo defaults to `32×16` terminal characters (internally resized to `32×32` pixels for half-block rendering).
 
 If you don’t have frames yet, the app auto-generates a small placeholder animation into `~/.cache/scrape_tui/avatar_frames/` and uses that automatically.
