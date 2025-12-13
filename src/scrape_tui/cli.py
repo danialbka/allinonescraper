@@ -224,12 +224,37 @@ def main(argv: list[str] | None = None) -> int:
         help="Force download mode (default: auto)",
     )
     parser.add_argument("--max-images", type=int, default=None, help="Limit images when scraping a page")
+    parser.add_argument(
+        "--ui",
+        choices=["auto", "classic", "textual"],
+        default="auto",
+        help="UI mode: classic (Rich prompts) or textual (animated avatar panel) (default: auto)",
+    )
+    parser.add_argument(
+        "--frames-dir",
+        type=Path,
+        default=Path("assets/lain_frames"),
+        help="(textual UI) Folder containing 000.png, 001.png, ...",
+    )
+    parser.add_argument("--avatar-fps", type=float, default=10.0, help="(textual UI) Avatar FPS (default: 10)")
+    parser.add_argument(
+        "--avatar-backend",
+        choices=["auto", "rich_pixels", "halfblock"],
+        default="auto",
+        help="(textual UI) Avatar renderer backend (default: auto)",
+    )
     parser.add_argument("--no-codex", action="store_true", help="Disable Codex auto-fix prompts on errors")
     args = parser.parse_args(argv)
 
-    console = Console()
     initial_url = (args.url or "").strip() or None
     loop = initial_url is None and sys.stdin.isatty()
+
+    if args.ui == "textual" or (args.ui == "auto" and loop):
+        from .textual_app import run_textual
+
+        return run_textual(argv)
+
+    console = Console()
 
     last_exit_code = 0
     while True:
