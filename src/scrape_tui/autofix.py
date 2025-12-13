@@ -10,13 +10,25 @@ from rich.prompt import Confirm
 
 
 def find_project_root(start: Path | None = None) -> Path | None:
-    current = (start or Path.cwd()).resolve()
-    for parent in [current, *current.parents]:
-        if not (parent / "src" / "scrape_tui").exists():
-            continue
-        if not any((parent / marker).exists() for marker in ("pyproject.toml", "setup.cfg", "setup.py")):
-            continue
-        return parent
+    starts: list[Path] = []
+    if start is not None:
+        starts.append(start)
+    starts.append(Path.cwd())
+    starts.append(Path(__file__).resolve())
+
+    for start_path in starts:
+        current = start_path.resolve()
+        if current.is_file():
+            current = current.parent
+
+        for parent in [current, *current.parents]:
+            if not (parent / ".git").exists():
+                continue
+            if not (parent / "src" / "scrape_tui").exists():
+                continue
+            if not any((parent / marker).exists() for marker in ("pyproject.toml", "setup.cfg", "setup.py")):
+                continue
+            return parent
     return None
 
 
@@ -67,7 +79,7 @@ def offer_codex_autofix(console: Console, *, url: str, error: str) -> bool:
 
     root = find_project_root()
     if not root:
-        console.print("[yellow]Auto-fix requires running from the scrape-tui source directory.[/yellow]")
+        console.print("[yellow]Auto-fix requires running from the allinonescraper source directory.[/yellow]")
         return False
 
     console.print(f"[bold]Codex auto-fix (developer mode)[/bold]\nRepo: {root}")
@@ -86,7 +98,7 @@ def offer_codex_autofix(console: Console, *, url: str, error: str) -> bool:
         subprocess.run([codex, "login", "--device-auth"], cwd=root, check=False)
 
     prompt = (
-        "scrape-tui failed to download a URL.\n\n"
+        "allinonescraper failed to download a URL.\n\n"
         f"URL: {url}\n"
         f"Error: {error}\n\n"
         "Please update the code to either support this URL/site or improve robustness and error "
@@ -122,5 +134,5 @@ def offer_codex_autofix(console: Console, *, url: str, error: str) -> bool:
         console.print("[red]Failed to apply the Codex patch.[/red]")
         return False
 
-    console.print("[green]Patch applied. Re-run `scrape` to try again.[/green]")
+    console.print("[green]Patch applied. Restart the app to try again.[/green]")
     return True

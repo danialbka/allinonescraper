@@ -27,6 +27,8 @@ Run the app and paste a URL:
 allinonescraper
 ```
 
+It will return to the main menu after each download; submit a blank URL to exit.
+
 You can also run:
 
 ```bash
@@ -52,7 +54,7 @@ allinonescraper --output ./downloads https://example.com/picture.jpg
 - `--mode auto|video|images` (default: `auto`)
 - `--max-images N` (when scraping a page)
 - `--output PATH` (base directory; downloads go to `PATH/<domain>/<timestamp>/`)
-- `--codex-autofix` (developer mode; offers `codex login --device-auth` + patch attempt)
+- `--no-codex` (disable in-app Codex auto-fix prompts)
 
 ## How it works
 
@@ -68,7 +70,7 @@ Downloads are organized under `./downloads/<domain>/<timestamp>/`.
 
 ## Codex auto-fix (developer mode)
 
-If a site breaks, run with `--codex-autofix`. On errors it will:
+If a site breaks, on errors it can offer an in-app Codex auto-fix. It will:
 
 1. Ask permission to run Codex
 2. If needed, prompt for headless login using `codex login --device-auth`
