@@ -19,6 +19,40 @@ from .utils import domain_from_url, sanitize_filename
 from .video import build_video_options, download_with_ytdlp, probe_with_ytdlp
 
 
+def _enable_readline_shortcuts() -> None:
+    try:
+        import readline  # noqa: F401
+    except Exception:
+        return
+
+    if not sys.stdin.isatty():
+        return
+
+    try:
+        import readline
+
+        for binding in (
+            r'"\e[127;5u": backward-kill-word',  # xterm modifyOtherKeys
+            r'"\e[8;5u": backward-kill-word',  # kitty keyboard protocol
+        ):
+            try:
+                readline.parse_and_bind(binding)
+            except Exception:
+                pass
+
+        try:
+            import termios
+
+            cc = termios.tcgetattr(sys.stdin.fileno())[6]
+            erase = cc[termios.VERASE]
+            if isinstance(erase, int) and erase == 0x7F:
+                readline.parse_and_bind(r'"\C-h": backward-kill-word')
+        except Exception:
+            pass
+    except Exception:
+        return
+
+
 def _is_video_info(info: dict[str, Any]) -> bool:
     entries = info.get("entries")
     if isinstance(entries, list) and entries:
@@ -78,7 +112,25 @@ def _restart_self() -> None:
 
 
 def _pause(console: Console, message: str = "Press Enter to return to the main menu...") -> None:
-    console.input(f"\n{message}")
+    try:
+        input(f"\n{message}")
+    except EOFError:
+        return
+
+
+def _print_guide(console: Console) -> None:
+    guide = "\n".join(
+        [
+            "[bold]Download guide[/bold]",
+            "- Paste a URL and press Enter (blank URL exits)",
+            "- Choose (v)ideo to force video, (i)mages to force images, or (a)uto",
+            "- Video: pick a quality number; installing `ffmpeg` enables best-quality merges",
+            "- Output: `downloads/<domain>/<timestamp>/` (change with `--output`)",
+            "",
+            "[dim]Line editing:[/dim] Ctrl+Backspace / Ctrl+W delete word, Ctrl+U clears line",
+        ]
+    )
+    console.print(Panel.fit(guide, title="Help", border_style="dim"))
 
 
 def _ask_download_mode(console: Console, *, default_mode: str) -> str:
@@ -98,9 +150,10 @@ def _ask_download_mode(console: Console, *, default_mode: str) -> str:
     }
     default_token = {"auto": "a", "video": "v", "images": "i"}.get(default_mode, "a")
     while True:
-        raw = console.input(
-            f"Download (a)uto / (v)ideo / (i)mages (default {default_token}): "
-        ).strip().lower()
+        try:
+            raw = input(f"Download (a)uto / (v)ideo / (i)mages (default {default_token}): ").strip().lower()
+        except EOFError:
+            return default_mode
         if not raw:
             return default_mode
         mode = mapping.get(raw)
@@ -150,6 +203,8 @@ def _download_once(console: Console, *, url: str, args, mode: str, interactive: 
 
 
 def main(argv: list[str] | None = None) -> int:
+    _enable_readline_shortcuts()
+
     parser = argparse.ArgumentParser(
         prog="allinonescraper",
         description="All-in-one downloader TUI (videos + images).",
@@ -187,10 +242,14 @@ def main(argv: list[str] | None = None) -> int:
                 border_style="cyan",
             )
         )
+        _print_guide(console)
 
         url = initial_url
         if url is None:
-            url = console.input("URL (blank to quit): ").strip() or None
+            try:
+                url = input("URL (blank to quit): ").strip() or None
+            except EOFError:
+                return last_exit_code
 
         if not url:
             return last_exit_code
