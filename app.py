@@ -87,8 +87,12 @@ class AvatarWidget(Widget):
             except Exception:
                 pass
         duration = float(self._frames[self._frame_index].duration_s)
+        max_fps = float(self.fps)
+        min_duration = (1.0 / max_fps) if max_fps > 0 else 0.0
         if duration <= 0:
-            duration = 1.0 / max(1e-6, float(self.fps))
+            duration = min_duration if min_duration > 0 else 0.1
+        elif min_duration > 0:
+            duration = max(duration, min_duration)
         self._timer = self.set_timer(duration, self._advance_frame)
 
     def _advance_frame(self) -> None:
@@ -138,10 +142,10 @@ class DemoApp(App):
         self,
         *,
         frames_dir: Path = Path("./assets/lain_frames"),
-        fps: float = 12.0,
-        backend: AvatarBackend = "braille",
-        width_chars: int = 64,
-        height_chars: int = 32,
+        fps: float = 10.0,
+        backend: AvatarBackend = "halfblock",
+        width_chars: int = 32,
+        height_chars: int = 16,
     ) -> None:
         super().__init__()
         self.frames_dir = ensure_frames_dir(frames_dir)
@@ -180,7 +184,7 @@ class DemoApp(App):
                     "",
                     f"Frames dir: {self.frames_dir}",
                     f"Backend: {self.backend}",
-                    f"Target size: 32×16 chars (half-block = 32×32 px)",
+                    f"Target size: {self._avatar.width_chars}×{self._avatar.height_chars} chars",
                     f"FPS: {self.fps}",
                     f"Frames loaded: {self._avatar.frames_loaded} ({load_str})",
                     "",
@@ -201,15 +205,15 @@ if __name__ == "__main__":
         default=Path("./assets/lain_frames"),
         help="Folder containing 000.png, 001.png, ...",
     )
-    parser.add_argument("--fps", type=float, default=12.0, help="Animation speed (frames per second).")
+    parser.add_argument("--fps", type=float, default=10.0, help="Cap avatar FPS (GIFs are clamped to this).")
     parser.add_argument(
         "--backend",
         choices=["auto", "rich_pixels", "braille", "halfblock"],
-        default="braille",
-        help="Rendering backend (auto prefers rich_pixels, then braille, then halfblock).",
+        default="halfblock",
+        help="Rendering backend (auto prefers rich_pixels, then halfblock).",
     )
-    parser.add_argument("--width", type=int, default=64, help="Avatar width in terminal characters.")
-    parser.add_argument("--height", type=int, default=32, help="Avatar height in terminal characters.")
+    parser.add_argument("--width", type=int, default=32, help="Avatar width in terminal characters.")
+    parser.add_argument("--height", type=int, default=16, help="Avatar height in terminal characters.")
     args = parser.parse_args()
 
     DemoApp(

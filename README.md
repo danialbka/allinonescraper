@@ -52,7 +52,7 @@ When you start `scrape` / `allinonescraper` interactively (no URL argument), it 
 - Or point `--frames-dir` at a `.gif` (or drop a `.gif` into `./assets/` and it will be auto-picked).
 - If you don't add frames, it auto-generates a small placeholder animation into `~/.cache/scrape_tui/avatar_frames/`.
 - Force the old prompt-based UI: `scrape --ui classic`
- - Max quality defaults: `--avatar-backend braille --avatar-width 64 --avatar-height 32`
+ - For max quality (heavier): `--avatar-backend braille --avatar-width 64 --avatar-height 32`
 
 It will return to the main menu after each download; submit a blank URL to exit.
 

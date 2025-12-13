@@ -324,13 +324,13 @@ def run_textual(argv: list[str] | None = None) -> int:
     parser.add_argument("--mode", choices=["auto", "video", "images"], default="auto")
     parser.add_argument("--max-images", type=int, default=None)
     parser.add_argument("--frames-dir", type=Path, default=Path("assets/lain_frames"))
-    parser.add_argument("--avatar-fps", type=float, default=12.0)
-    parser.add_argument("--avatar-width", type=int, default=64, help="Avatar width in terminal characters.")
-    parser.add_argument("--avatar-height", type=int, default=32, help="Avatar height in terminal characters.")
+    parser.add_argument("--avatar-fps", type=float, default=10.0, help="Cap avatar FPS (GIFs are clamped to this).")
+    parser.add_argument("--avatar-width", type=int, default=32, help="Avatar width in terminal characters.")
+    parser.add_argument("--avatar-height", type=int, default=16, help="Avatar height in terminal characters.")
     parser.add_argument(
         "--avatar-backend",
         choices=["auto", "rich_pixels", "braille", "halfblock"],
-        default="braille",
+        default="halfblock",
     )
     args, _unknown = parser.parse_known_args(argv)
 

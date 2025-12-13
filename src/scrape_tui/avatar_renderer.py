@@ -336,12 +336,8 @@ class AvatarRenderer:
                     "Install it (`pip install rich-pixels`) or use backend='braille'/'halfblock'."
                 )
 
-        if self.backend in {"auto", "braille"}:
-            rendered = self._render_braille(images)
-            if self.backend == "braille":
-                return rendered
-            if rendered:
-                return rendered
+        if self.backend == "braille":
+            return self._render_braille(images)
 
         return self._render_halfblock(images)
 

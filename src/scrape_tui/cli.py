@@ -236,14 +236,14 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("assets/lain_frames"),
         help="(textual UI) Folder containing 000.png, 001.png, ...",
     )
-    parser.add_argument("--avatar-fps", type=float, default=12.0, help="(textual UI) Avatar FPS (default: 12)")
-    parser.add_argument("--avatar-width", type=int, default=64, help="(textual UI) Avatar width in characters")
-    parser.add_argument("--avatar-height", type=int, default=32, help="(textual UI) Avatar height in characters")
+    parser.add_argument("--avatar-fps", type=float, default=10.0, help="(textual UI) Avatar FPS cap (default: 10)")
+    parser.add_argument("--avatar-width", type=int, default=32, help="(textual UI) Avatar width in characters")
+    parser.add_argument("--avatar-height", type=int, default=16, help="(textual UI) Avatar height in characters")
     parser.add_argument(
         "--avatar-backend",
         choices=["auto", "rich_pixels", "braille", "halfblock"],
-        default="braille",
-        help="(textual UI) Avatar renderer backend (default: braille)",
+        default="halfblock",
+        help="(textual UI) Avatar renderer backend (default: halfblock)",
     )
     parser.add_argument("--no-codex", action="store_true", help="Disable Codex auto-fix prompts on errors")
     args = parser.parse_args(argv)

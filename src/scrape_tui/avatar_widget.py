@@ -78,8 +78,13 @@ class AvatarWidget(Widget):
                 pass
 
         duration = float(self._frames[self._frame_index].duration_s)
+        max_fps = float(self.fps)
+        min_duration = (1.0 / max_fps) if max_fps > 0 else 0.0
+
         if duration <= 0:
-            duration = 1.0 / max(1e-6, float(self.fps))
+            duration = min_duration if min_duration > 0 else 0.1
+        elif min_duration > 0:
+            duration = max(duration, min_duration)
         self._timer = self.set_timer(duration, self._advance_frame)
 
     def _advance_frame(self) -> None:
