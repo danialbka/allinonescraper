@@ -18,6 +18,7 @@ from .avatar_renderer import AvatarBackend
 from .avatar_assets import ensure_frames_dir
 from .avatar_widget import AvatarWidget
 from .errors import DownloadFailedError, UnsupportedUrlError
+from .settings import UiSettings, load_ui_settings, save_ui_settings
 from .textual_download import (
     download_images_from_url_textual,
     download_with_ytdlp_textual,
@@ -42,6 +43,7 @@ class ScrapeTextualArgs:
     avatar_backend: AvatarBackend
     avatar_width_chars: int
     avatar_height_chars: int
+    theme: str | None
 
 
 @dataclass(frozen=True)
@@ -92,6 +94,7 @@ class ScrapeTextualApp(App[int]):
     def __init__(self, args: ScrapeTextualArgs) -> None:
         super().__init__()
         self.args = args
+        self._ui_settings = UiSettings(theme=args.theme)
         self._events: SimpleQueue[UiEvent] = SimpleQueue()
         self._worker: threading.Thread | None = None
         self._busy = False
@@ -111,6 +114,8 @@ class ScrapeTextualApp(App[int]):
                         value=self.args.mode,
                         id="mode",
                     )
+                    yield Static("Theme", classes="label")
+                    yield Select(options=[], id="theme")
                     yield Static("Max images (optional)", classes="label")
                     yield Input(value="" if self.args.max_images is None else str(self.args.max_images), id="max_images")
                     yield Static("Output directory", classes="label")
@@ -134,6 +139,7 @@ class ScrapeTextualApp(App[int]):
         self._log = self.query_one("#log", _Status)
         self._url = self.query_one("#url", Input)
         self._mode = self.query_one("#mode", Select)
+        self._theme = self.query_one("#theme", Select)
         self._max_images = self.query_one("#max_images", Input)
         self._output = self.query_one("#output", Input)
         self._video_label = self.query_one("#video_label", Static)
@@ -150,12 +156,35 @@ class ScrapeTextualApp(App[int]):
             ]
         )
 
+        self._init_theme_picker()
+
     def _set_log(self, lines: list[str]) -> None:
         self._log.set_lines(lines)
 
+    def _init_theme_picker(self) -> None:
+        themes = list(self.available_themes)
+        themes.sort()
+        options = [(name, name) for name in themes]
+        if hasattr(self._theme, "set_options"):
+            self._theme.set_options(options)  # type: ignore[attr-defined]
+        else:
+            self._theme.options = options  # type: ignore[assignment]
+
+        desired = self._ui_settings.theme
+        if isinstance(desired, str) and desired in themes:
+            self.theme = desired
+            self._theme.value = desired
+        else:
+            # Align picker to current theme for discoverability.
+            try:
+                current = str(self.theme)
+            except Exception:
+                current = ""
+            self._theme.value = current if current in themes else (themes[0] if themes else None)
+
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
-        for widget in (self._url, self._mode, self._max_images, self._output, self._video_quality):
+        for widget in (self._url, self._mode, self._theme, self._max_images, self._output, self._video_quality):
             try:
                 widget.disabled = busy
             except Exception:
@@ -253,6 +282,21 @@ class ScrapeTextualApp(App[int]):
             self._video_url = None
             self._start_thread(self._probe_and_maybe_download, url, output_dir, mode, max_images)
 
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id != "theme":
+            return
+        value = event.value
+        if not isinstance(value, str) or not value.strip():
+            return
+        if value not in self.available_themes:
+            return
+        self.theme = value
+        self._ui_settings.theme = value
+        try:
+            save_ui_settings(self._ui_settings)
+        except Exception:
+            pass
+
     def _start_thread(self, target, *args) -> None:
         self._set_busy(True)
         self._worker = threading.Thread(target=target, args=args, daemon=True)
@@ -332,9 +376,12 @@ def run_textual(argv: list[str] | None = None) -> int:
         choices=["auto", "rich_pixels", "braille", "halfblock"],
         default="halfblock",
     )
+    parser.add_argument("--theme", type=str, default=None, help="Override saved Textual theme.")
     args, _unknown = parser.parse_known_args(argv)
 
     frames_dir = ensure_frames_dir(args.frames_dir)
+    settings = load_ui_settings()
+    theme = args.theme if isinstance(args.theme, str) and args.theme.strip() else settings.theme
     app = ScrapeTextualApp(
         ScrapeTextualArgs(
             url=args.url,
@@ -346,6 +393,7 @@ def run_textual(argv: list[str] | None = None) -> int:
             avatar_backend=args.avatar_backend,  # type: ignore[arg-type]
             avatar_width_chars=int(args.avatar_width),
             avatar_height_chars=int(args.avatar_height),
+            theme=theme,
         )
     )
     result = app.run()

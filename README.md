@@ -53,6 +53,7 @@ When you start `scrape` / `allinonescraper` interactively (no URL argument), it 
 - If you don't add frames, it auto-generates a small placeholder animation into `~/.cache/scrape_tui/avatar_frames/`.
 - Force the old prompt-based UI: `scrape --ui classic`
  - For max quality (heavier): `--avatar-backend braille --avatar-width 64 --avatar-height 32`
+ - Theme is saved to `~/.config/scrape_tui/settings.json` (override with `--theme`).
 
 It will return to the main menu after each download; submit a blank URL to exit.
 
