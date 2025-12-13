@@ -98,7 +98,9 @@ def _ask_download_mode(console: Console, *, default_mode: str) -> str:
     }
     default_token = {"auto": "a", "video": "v", "images": "i"}.get(default_mode, "a")
     while True:
-        raw = console.input(f"Download [a]uto / [v]ideo / [i]mages (default {default_token}): ").strip().lower()
+        raw = console.input(
+            f"Download (a)uto / (v)ideo / (i)mages (default {default_token}): "
+        ).strip().lower()
         if not raw:
             return default_mode
         mode = mapping.get(raw)
