@@ -14,14 +14,17 @@ All‑in‑one downloader TUI for videos + images. Paste a URL, pick a quality (
 
 ### Windows (no Python required)
 
-Download the latest `allinonescraper-windows-x64.zip` from:
+Download the latest release from:
 
 https://github.com/danialbka/allinonescraper/releases/latest
 
-Unzip it, and run `allinonescraper.exe`.
+Either:
+- Download `allinonescraper.exe` and run it, or
+- Download `allinonescraper-windows-x64.zip`, unzip it, then run `allinonescraper.exe`.
 
 Notes:
 - The EXE bundles Python + dependencies (no install needed).
+- Double-clicking `allinonescraper.exe` opens a terminal window and runs the TUI.
 - For best-quality video (video+audio merges), install `ffmpeg` and make sure it’s on `PATH`.
 
 ### From source (Linux/macOS/Windows)

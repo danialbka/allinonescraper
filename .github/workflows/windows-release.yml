@@ -50,10 +50,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: allinonescraper-windows-x64
-          path: dist/allinonescraper-windows-x64.zip
+          path: |
+            dist/allinonescraper.exe
+            dist/allinonescraper-windows-x64.zip
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/allinonescraper-windows-x64.zip
+          files: |
+            dist/allinonescraper.exe
+            dist/allinonescraper-windows-x64.zip
