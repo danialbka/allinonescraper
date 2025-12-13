@@ -59,6 +59,8 @@ def build_video_options(info: dict[str, Any]) -> list[VideoOption]:
         formats,
         require_audio_video_single_file=not can_merge,
     )
+    if not heights:
+        heights = [1080, 720, 480, 360, 240, 144]
 
     options: list[VideoOption] = []
     if can_merge:
@@ -85,7 +87,7 @@ def build_video_options(info: dict[str, Any]) -> list[VideoOption]:
             VideoOption(
                 label=f"{h}p (single file)",
                 height=h,
-                format_selector=f"best[height<={h}]",
+                format_selector=f"best[height<={h}]/best",
             )
         )
     return options

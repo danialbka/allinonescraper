@@ -29,6 +29,8 @@ allinonescraper
 
 It will return to the main menu after each download; submit a blank URL to exit.
 
+When running in the default `auto` mode, it will also ask whether you want to download the URL as a video or as images.
+
 You can also run:
 
 ```bash
