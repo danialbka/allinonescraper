@@ -84,12 +84,29 @@ class ScrapeTextualApp(App[int]):
         padding: 1 1;
     }
 
+    #controls .row {
+        layout: horizontal;
+        height: auto;
+        margin-bottom: 1;
+    }
+
+    #controls .label {
+        width: 18;
+        content-align: right middle;
+        color: $text-muted;
+    }
+
+    #controls .grow {
+        width: 1fr;
+    }
+
     #controls Button {
         width: auto;
     }
 
     #log_container {
-        height: 8;
+        height: 1fr;
+        min-height: 8;
         border: round $surface;
         padding: 1 1;
     }
@@ -112,23 +129,34 @@ class ScrapeTextualApp(App[int]):
         with Horizontal(id="body"):
             with Vertical(id="left"):
                 with VerticalScroll(id="controls"):
-                    yield Static("URL", classes="label")
-                    yield Input(value=self.args.url or "", placeholder="https://…", id="url")
-                    yield Button("Start download", id="start")
-                    yield Static("Mode", classes="label")
-                    yield Select(
-                        options=[("auto", "auto"), ("video", "video"), ("images", "images")],
-                        value=self.args.mode,
-                        id="mode",
-                    )
-                    yield Static("Theme", classes="label")
-                    yield Select(options=[], id="theme")
-                    yield Static("Max images (optional)", classes="label")
-                    yield Input(value="" if self.args.max_images is None else str(self.args.max_images), id="max_images")
-                    yield Static("Output directory", classes="label")
-                    yield Input(value=str(self.args.output), id="output")
-                    yield Static("Video quality (auto-detected)", classes="label", id="video_label")
-                    yield Select(options=[], id="video_quality")
+                    with Horizontal(classes="row"):
+                        yield Static("URL", classes="label")
+                        yield Input(value=self.args.url or "", placeholder="https://…", id="url", classes="grow")
+                        yield Button("Start", id="start")
+                    with Horizontal(classes="row"):
+                        yield Static("Mode", classes="label")
+                        yield Select(
+                            options=[("auto", "auto"), ("video", "video"), ("images", "images")],
+                            value=self.args.mode,
+                            id="mode",
+                            classes="grow",
+                        )
+                    with Horizontal(classes="row"):
+                        yield Static("Theme", classes="label")
+                        yield Select(options=[], id="theme", classes="grow")
+                    with Horizontal(classes="row"):
+                        yield Static("Max images", classes="label")
+                        yield Input(
+                            value="" if self.args.max_images is None else str(self.args.max_images),
+                            id="max_images",
+                            classes="grow",
+                        )
+                    with Horizontal(classes="row"):
+                        yield Static("Output dir", classes="label")
+                        yield Input(value=str(self.args.output), id="output", classes="grow")
+                    with Horizontal(classes="row"):
+                        yield Static("Video quality", classes="label", id="video_label")
+                        yield Select(options=[], id="video_quality", classes="grow")
                 with VerticalScroll(id="log_container"):
                     yield _Status(id="log")
 
