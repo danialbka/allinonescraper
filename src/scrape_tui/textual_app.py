@@ -78,19 +78,18 @@ class ScrapeTextualApp(App[int]):
         width: 1fr;
     }
 
-    #controls Button {
-        width: 1fr;
-    }
-
-    #log {
-        border: round $surface;
-        padding: 1 1;
-        height: 1fr;
-    }
-
     #controls {
         height: auto;
-        max-height: 12;
+        border: round $surface;
+        padding: 1 1;
+    }
+
+    #controls Button {
+        width: auto;
+    }
+
+    #log_container {
+        height: 8;
         border: round $surface;
         padding: 1 1;
     }
@@ -130,7 +129,8 @@ class ScrapeTextualApp(App[int]):
                     yield Input(value=str(self.args.output), id="output")
                     yield Static("Video quality (auto-detected)", classes="label", id="video_label")
                     yield Select(options=[], id="video_quality")
-                yield _Status(id="log")
+                with VerticalScroll(id="log_container"):
+                    yield _Status(id="log")
 
             yield AvatarWidget(
                 id="avatar",
