@@ -57,6 +57,44 @@ class _Status(Static):
     def set_lines(self, lines: list[str]) -> None:
         self.update(Text("\n".join(lines)))
 
+    def append(self, line: str, *, limit: int = 200) -> None:
+        if not hasattr(self, "_lines"):
+            self._lines: list[str] = []
+        self._lines.append(line)
+        if len(self._lines) > limit:
+            self._lines = self._lines[-limit:]
+        self.set_lines(self._lines)
+
+
+class _Progress(Static):
+    def set_progress(self, *, percent: int | None, message: str) -> None:
+        bar = self._bar(percent)
+        self.update(Text(f"{bar}  {message}", style="dim"))
+
+    def clear(self) -> None:
+        self.update(Text(""))
+
+    @staticmethod
+    def _bar(percent: int | None, width: int = 24) -> str:
+        if percent is None:
+            return "[" + (" " * width) + "]"
+        percent = max(0, min(100, int(percent)))
+        filled = int(round(width * (percent / 100.0)))
+        return "[" + ("█" * filled) + (" " * (width - filled)) + f"] {percent:3d}%"
+
+
+def _extract_percent(message: str) -> int | None:
+    for token in message.replace("(", " ").replace(")", " ").replace(",", " ").split():
+        if not token.endswith("%"):
+            continue
+        raw = token[:-1]
+        try:
+            pct = int(raw)
+        except ValueError:
+            continue
+        return max(0, min(100, pct))
+    return None
+
 
 class ScrapeTextualApp(App[int]):
     CSS = """
@@ -110,6 +148,12 @@ class ScrapeTextualApp(App[int]):
         border: round $surface;
         padding: 1 1;
     }
+
+    #progress {
+        height: 1;
+        margin-bottom: 1;
+        color: $text-muted;
+    }
     """
 
     BINDINGS = [("q", "quit", "Quit")]
@@ -123,6 +167,7 @@ class ScrapeTextualApp(App[int]):
         self._busy = False
         self._video_options: list[tuple[str, str]] = []
         self._video_url: str | None = None
+        self._last_status: str = ""
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -158,6 +203,7 @@ class ScrapeTextualApp(App[int]):
                         yield Static("Video quality", classes="label", id="video_label")
                         yield Select(options=[], id="video_quality", classes="grow")
                 with VerticalScroll(id="log_container"):
+                    yield _Progress(id="progress")
                     yield _Status(id="log")
 
             yield AvatarWidget(
@@ -171,6 +217,7 @@ class ScrapeTextualApp(App[int]):
         yield Footer()
 
     def on_mount(self) -> None:
+        self._progress = self.query_one("#progress", _Progress)
         self._log = self.query_one("#log", _Status)
         self._url = self.query_one("#url", Input)
         self._mode = self.query_one("#mode", Select)
@@ -182,14 +229,11 @@ class ScrapeTextualApp(App[int]):
         self._video_label.display = False
         self._video_quality.display = False
         self.set_interval(0.05, self._drain_events)
-        self._set_log(
-            [
-                "Avatar panel is active (Unicode + truecolor; no Kitty/SIXEL).",
-                "Enter a URL and press Start.",
-                "",
-                "Controls: q to quit.",
-            ]
-        )
+        self._progress.clear()
+        self._log.set_lines([])
+        self._log.append("Avatar panel is active (Unicode + truecolor; no Kitty/SIXEL).")
+        self._log.append("Enter a URL and press Start (or press Enter in URL).")
+        self._log.append("Controls: q to quit.")
 
         self._init_theme_picker()
 
@@ -243,12 +287,14 @@ class ScrapeTextualApp(App[int]):
             return
 
         if last.kind == "error":
-            self._set_log(["Error:", last.message])
+            self._progress.clear()
+            self._log.append(f"Error: {last.message}")
             self._set_busy(False)
             return
 
         if last.kind == "done":
-            self._set_log([last.message])
+            self._progress.clear()
+            self._log.append(last.message)
             self._set_busy(False)
             return
 
@@ -264,12 +310,10 @@ class ScrapeTextualApp(App[int]):
                 self._video_quality.value = self._video_options[0][1]
                 self._video_label.display = True
                 self._video_quality.display = True
-                self._set_log(
-                    [
-                        "Video detected.",
-                        "Pick a quality, then press Start again to download.",
-                    ]
-                )
+                self._progress.clear()
+                self._log.append("Video detected.")
+                self._log.append("Pick a quality, then press Start again to download.")
+                self._log.append("Tip: if it feels laggy, lower `--avatar-fps`.")
                 self._set_busy(False)
             else:
                 self._video_label.display = False
@@ -277,7 +321,15 @@ class ScrapeTextualApp(App[int]):
             return
 
         if last.kind == "status":
-            self._set_log([last.message])
+            message = last.message
+            percent = _extract_percent(message)
+            if percent is not None or "downloading" in message.lower():
+                if message != self._last_status:
+                    self._progress.set_progress(percent=percent, message=message)
+                    self._last_status = message
+            # Log occasionally (avoid spamming on every progress tick).
+            if percent is None or percent in (0, 25, 50, 75, 100) or message.endswith("done"):
+                self._log.append(message)
             return
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
