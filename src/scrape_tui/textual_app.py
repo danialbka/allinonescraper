@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Footer, Header, Input, Select, Static
 
 from .avatar_renderer import AvatarBackend
@@ -87,6 +87,13 @@ class ScrapeTextualApp(App[int]):
         padding: 1 1;
         height: 1fr;
     }
+
+    #controls {
+        height: auto;
+        max-height: 12;
+        border: round $surface;
+        padding: 1 1;
+    }
     """
 
     BINDINGS = [("q", "quit", "Quit")]
@@ -105,9 +112,10 @@ class ScrapeTextualApp(App[int]):
         yield Header(show_clock=True)
         with Horizontal(id="body"):
             with Vertical(id="left"):
-                with Vertical(id="controls"):
+                with VerticalScroll(id="controls"):
                     yield Static("URL", classes="label")
                     yield Input(value=self.args.url or "", placeholder="https://…", id="url")
+                    yield Button("Start download", id="start")
                     yield Static("Mode", classes="label")
                     yield Select(
                         options=[("auto", "auto"), ("video", "video"), ("images", "images")],
@@ -122,7 +130,6 @@ class ScrapeTextualApp(App[int]):
                     yield Input(value=str(self.args.output), id="output")
                     yield Static("Video quality (auto-detected)", classes="label", id="video_label")
                     yield Select(options=[], id="video_quality")
-                    yield Button("Start", id="start")
                 yield _Status(id="log")
 
             yield AvatarWidget(
@@ -157,6 +164,11 @@ class ScrapeTextualApp(App[int]):
         )
 
         self._init_theme_picker()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        # Pressing Enter in the URL field should start the download.
+        if event.input.id == "url":
+            self._start_from_ui()
 
     def _set_log(self, lines: list[str]) -> None:
         self._log.set_lines(lines)
@@ -242,45 +254,48 @@ class ScrapeTextualApp(App[int]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "start":
-            if self._busy:
+            self._start_from_ui()
+
+    def _start_from_ui(self) -> None:
+        if self._busy:
+            return
+
+        url = (self._url.value or "").strip()
+        if not url:
+            self._set_log(["Enter a URL first."])
+            return
+
+        mode = self._mode.value or "auto"
+        if mode not in ("auto", "video", "images"):
+            self._set_log(["Mode must be auto/video/images."])
+            return
+
+        max_images_raw = (self._max_images.value or "").strip()
+        max_images = None
+        if max_images_raw:
+            try:
+                max_images = int(max_images_raw)
+            except ValueError:
+                self._set_log(["Max images must be an integer (or blank)."])
                 return
 
-            url = (self._url.value or "").strip()
-            if not url:
-                self._set_log(["Enter a URL first."])
+        output_dir = Path((self._output.value or "").strip() or "downloads")
+
+        if mode in ("auto", "video") and self._video_quality.display and self._video_url == url:
+            format_selector = self._video_quality.value
+            if isinstance(format_selector, str) and format_selector.strip():
+                self._start_thread(
+                    self._download_video,
+                    url,
+                    output_dir,
+                    format_selector,
+                )
                 return
 
-            mode = self._mode.value or "auto"
-            if mode not in ("auto", "video", "images"):
-                self._set_log(["Mode must be auto/video/images."])
-                return
-
-            max_images_raw = (self._max_images.value or "").strip()
-            max_images = None
-            if max_images_raw:
-                try:
-                    max_images = int(max_images_raw)
-                except ValueError:
-                    self._set_log(["Max images must be an integer (or blank)."])
-                    return
-
-            output_dir = Path((self._output.value or "").strip() or "downloads")
-
-            if mode in ("auto", "video") and self._video_quality.display and self._video_url == url:
-                format_selector = self._video_quality.value
-                if isinstance(format_selector, str) and format_selector.strip():
-                    self._start_thread(
-                        self._download_video,
-                        url,
-                        output_dir,
-                        format_selector,
-                    )
-                    return
-
-            self._video_label.display = False
-            self._video_quality.display = False
-            self._video_url = None
-            self._start_thread(self._probe_and_maybe_download, url, output_dir, mode, max_images)
+        self._video_label.display = False
+        self._video_quality.display = False
+        self._video_url = None
+        self._start_thread(self._probe_and_maybe_download, url, output_dir, mode, max_images)
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id != "theme":
