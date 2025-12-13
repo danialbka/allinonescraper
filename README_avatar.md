@@ -13,9 +13,16 @@ Or use a GIF:
 scrape --ui textual --frames-dir ./assets/your_avatar.gif
 ```
 
-The demo defaults to `32×16` terminal characters (internally resized to `32×32` pixels for half-block rendering).
+The Textual UI defaults to **max quality**: `braille` rendering at `64×32` terminal characters.
 
 If you don’t have frames yet, the app auto-generates a small placeholder animation into `~/.cache/scrape_tui/avatar_frames/` and uses that automatically.
+
+You can tune quality/performance:
+
+```bash
+scrape --ui textual --avatar-backend braille --avatar-width 64 --avatar-height 32
+scrape --ui textual --avatar-backend halfblock --avatar-width 32 --avatar-height 16
+```
 
 ## Install (WSL)
 

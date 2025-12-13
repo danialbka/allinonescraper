@@ -23,8 +23,6 @@ except ModuleNotFoundError:
 class AvatarWidget(Widget):
     DEFAULT_CSS = """
     AvatarWidget {
-        width: 34;
-        height: 18;
         border: round $primary;
         padding: 0;
     }
@@ -63,6 +61,9 @@ class AvatarWidget(Widget):
         return self._load_seconds
 
     def on_mount(self) -> None:
+        self.styles.width = self.width_chars + 2
+        self.styles.height = self.height_chars + 2
+
         started = perf_counter()
         self._frames = AvatarRenderer(
             frames_dir=self.frames_dir,
@@ -102,7 +103,7 @@ class AvatarWidget(Widget):
             if not self.frames_dir.exists():
                 msg = f"Missing frames:\n{self.frames_dir}"
             else:
-                msg = f"No PNG frames in:\n{self.frames_dir}"
+                msg = f"No PNG frames / GIF at:\n{self.frames_dir}"
             return Text(msg, style="dim")
         return self._frames[self._frame_index].renderable
 
@@ -137,13 +138,17 @@ class DemoApp(App):
         self,
         *,
         frames_dir: Path = Path("./assets/lain_frames"),
-        fps: float = 10.0,
-        backend: AvatarBackend = "auto",
+        fps: float = 12.0,
+        backend: AvatarBackend = "braille",
+        width_chars: int = 64,
+        height_chars: int = 32,
     ) -> None:
         super().__init__()
         self.frames_dir = ensure_frames_dir(frames_dir)
         self.fps = fps
         self.backend = backend
+        self.width_chars = width_chars
+        self.height_chars = height_chars
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -152,8 +157,8 @@ class DemoApp(App):
             yield AvatarWidget(
                 id="avatar_panel",
                 frames_dir=self.frames_dir,
-                width_chars=32,
-                height_chars=16,
+                width_chars=self.width_chars,
+                height_chars=self.height_chars,
                 fps=self.fps,
                 backend=self.backend,
             )
@@ -196,13 +201,21 @@ if __name__ == "__main__":
         default=Path("./assets/lain_frames"),
         help="Folder containing 000.png, 001.png, ...",
     )
-    parser.add_argument("--fps", type=float, default=10.0, help="Animation speed (frames per second).")
+    parser.add_argument("--fps", type=float, default=12.0, help="Animation speed (frames per second).")
     parser.add_argument(
         "--backend",
-        choices=["auto", "rich_pixels", "halfblock"],
-        default="auto",
-        help="Rendering backend (auto prefers rich_pixels, falls back to halfblock).",
+        choices=["auto", "rich_pixels", "braille", "halfblock"],
+        default="braille",
+        help="Rendering backend (auto prefers rich_pixels, then braille, then halfblock).",
     )
+    parser.add_argument("--width", type=int, default=64, help="Avatar width in terminal characters.")
+    parser.add_argument("--height", type=int, default=32, help="Avatar height in terminal characters.")
     args = parser.parse_args()
 
-    DemoApp(frames_dir=args.frames_dir, fps=args.fps, backend=args.backend).run()
+    DemoApp(
+        frames_dir=args.frames_dir,
+        fps=args.fps,
+        backend=args.backend,
+        width_chars=args.width,
+        height_chars=args.height,
+    ).run()

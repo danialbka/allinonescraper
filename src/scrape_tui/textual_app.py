@@ -40,6 +40,8 @@ class ScrapeTextualArgs:
     frames_dir: Path
     avatar_fps: float
     avatar_backend: AvatarBackend
+    avatar_width_chars: int
+    avatar_height_chars: int
 
 
 @dataclass(frozen=True)
@@ -121,8 +123,8 @@ class ScrapeTextualApp(App[int]):
             yield AvatarWidget(
                 id="avatar",
                 frames_dir=self.args.frames_dir,
-                width_chars=32,
-                height_chars=16,
+                width_chars=self.args.avatar_width_chars,
+                height_chars=self.args.avatar_height_chars,
                 fps=self.args.avatar_fps,
                 backend=self.args.avatar_backend,
             )
@@ -322,8 +324,14 @@ def run_textual(argv: list[str] | None = None) -> int:
     parser.add_argument("--mode", choices=["auto", "video", "images"], default="auto")
     parser.add_argument("--max-images", type=int, default=None)
     parser.add_argument("--frames-dir", type=Path, default=Path("assets/lain_frames"))
-    parser.add_argument("--avatar-fps", type=float, default=10.0)
-    parser.add_argument("--avatar-backend", choices=["auto", "rich_pixels", "halfblock"], default="auto")
+    parser.add_argument("--avatar-fps", type=float, default=12.0)
+    parser.add_argument("--avatar-width", type=int, default=64, help="Avatar width in terminal characters.")
+    parser.add_argument("--avatar-height", type=int, default=32, help="Avatar height in terminal characters.")
+    parser.add_argument(
+        "--avatar-backend",
+        choices=["auto", "rich_pixels", "braille", "halfblock"],
+        default="braille",
+    )
     args, _unknown = parser.parse_known_args(argv)
 
     frames_dir = ensure_frames_dir(args.frames_dir)
@@ -336,6 +344,8 @@ def run_textual(argv: list[str] | None = None) -> int:
             frames_dir=frames_dir,
             avatar_fps=args.avatar_fps,
             avatar_backend=args.avatar_backend,  # type: ignore[arg-type]
+            avatar_width_chars=int(args.avatar_width),
+            avatar_height_chars=int(args.avatar_height),
         )
     )
     result = app.run()

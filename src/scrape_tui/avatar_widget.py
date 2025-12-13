@@ -13,8 +13,6 @@ from .avatar_renderer import AvatarBackend, AvatarRenderer, RenderedFrame
 class AvatarWidget(Widget):
     DEFAULT_CSS = """
     AvatarWidget {
-        width: 34;
-        height: 18;
         border: round $primary;
         padding: 0;
     }
@@ -53,6 +51,9 @@ class AvatarWidget(Widget):
         return self._load_seconds
 
     def on_mount(self) -> None:
+        self.styles.width = self.width_chars + 2
+        self.styles.height = self.height_chars + 2
+
         started = perf_counter()
         self._frames = AvatarRenderer(
             frames_dir=self.frames_dir,
@@ -91,8 +92,8 @@ class AvatarWidget(Widget):
     def render(self):
         if not self._frames:
             if not self.frames_dir.exists():
-                msg = f"Missing frames:\n{self.frames_dir}"
+                msg = f"Missing avatar:\n{self.frames_dir}"
             else:
-                msg = f"No PNG frames in:\n{self.frames_dir}"
+                msg = f"No PNG frames / GIF at:\n{self.frames_dir}"
             return Text(msg, style="dim")
         return self._frames[self._frame_index].renderable
