@@ -7,8 +7,8 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from rich import box
 from rich.console import Console
-from rich.panel import Panel
 from rich.prompt import Confirm, IntPrompt
 from rich.table import Table
 
@@ -76,7 +76,7 @@ def _is_video_info(info: dict[str, Any]) -> bool:
 
 
 def _pick_video_option(console: Console, options) -> int:
-    table = Table(title="Video download options", show_lines=True)
+    table = Table(title="Video download options", box=box.SIMPLE)
     table.add_column("#", style="bold cyan", justify="right")
     table.add_column("Quality", style="bold")
     table.add_column("Format selector", overflow="fold")
@@ -91,20 +91,20 @@ def _pick_video_option(console: Console, options) -> int:
     return choice - 1
 
 
-def _error_panel(message: str) -> Panel:
-    hint = "\n".join(
-        [
-            "[bold]Troubleshooting[/bold]",
-            "- Try updating yt-dlp: `python3 -m pip install -U yt-dlp`",
-            "- Install ffmpeg for high-res merges",
-            "- Some sites require login/cookies",
-            "",
-            "[bold]Codex CLI (developer assist)[/bold]",
-            "- Headless login: `codex login --device-auth`",
-            "- On errors, you can run an in-app Codex auto-fix (source checkout only)",
-        ]
-    )
-    return Panel(f"[red]{message}[/red]\n\n{hint}", title="Error", border_style="red")
+def _error_panel(message: str) -> Table:
+    table = Table(title="Error", box=box.SIMPLE, border_style="red", show_header=False)
+    table.add_column("Details", style="red")
+    table.add_row(message)
+    table.add_row("")
+    table.add_row("Troubleshooting")
+    table.add_row("- Try updating yt-dlp: `python3 -m pip install -U yt-dlp`")
+    table.add_row("- Install ffmpeg for high-res merges")
+    table.add_row("- Some sites require login/cookies")
+    table.add_row("")
+    table.add_row("Codex CLI (developer assist)")
+    table.add_row("- Headless login: `codex login --device-auth`")
+    table.add_row("- On errors, you can run an in-app Codex auto-fix (source checkout only)")
+    return table
 
 
 def _restart_self() -> None:
@@ -119,18 +119,15 @@ def _pause(console: Console, message: str = "Press Enter to return to the main m
 
 
 def _print_guide(console: Console) -> None:
-    guide = "\n".join(
-        [
-            "[bold]Download guide[/bold]",
-            "- Paste a URL and press Enter (blank URL exits)",
-            "- Choose (v)ideo to force video, (i)mages to force images, or (a)uto",
-            "- Video: pick a quality number; installing `ffmpeg` enables best-quality merges",
-            "- Output: `downloads/<domain>/<timestamp>/` (change with `--output`)",
-            "",
-            "[dim]Line editing:[/dim] Ctrl+Backspace / Ctrl+W delete word, Ctrl+U clears line",
-        ]
-    )
-    console.print(Panel.fit(guide, title="Help", border_style="dim"))
+    guide = Table(title="Help", box=box.SIMPLE, show_header=False)
+    guide.add_column("Tips")
+    guide.add_row("Paste a URL and press Enter (blank URL exits)")
+    guide.add_row("Choose (v)ideo to force video, (i)mages to force images, or (a)uto")
+    guide.add_row("Video: pick a quality number; installing `ffmpeg` enables best-quality merges")
+    guide.add_row("Output: `downloads/<domain>/<timestamp>/` (change with `--output`)")
+    guide.add_row("")
+    guide.add_row("Line editing: Ctrl+Backspace / Ctrl+W delete word, Ctrl+U clears line")
+    console.print(guide)
 
 
 def _ask_download_mode(console: Console, *, default_mode: str) -> str:
@@ -172,8 +169,15 @@ def _download_once(console: Console, *, url: str, args, mode: str, interactive: 
             info = probe_with_ytdlp(url)
             if _is_video_info(info) or mode == "video":
                 title = info.get("title") or "video"
-                panel_title = "Detected video" if _is_video_info(info) else "Video download"
-                console.print(Panel(f"[bold]{title}[/bold]", title=panel_title, border_style="green"))
+                title_table = Table(
+                    title="Detected video" if _is_video_info(info) else "Video download",
+                    box=box.SIMPLE,
+                    border_style="green",
+                    show_header=False,
+                )
+                title_table.add_column("Title", style="green")
+                title_table.add_row(title)
+                console.print(title_table)
 
                 options = build_video_options(info)
                 selected = options[_pick_video_option(console, options)]
@@ -224,51 +228,22 @@ def main(argv: list[str] | None = None) -> int:
         help="Force download mode (default: auto)",
     )
     parser.add_argument("--max-images", type=int, default=None, help="Limit images when scraping a page")
-    parser.add_argument(
-        "--ui",
-        choices=["auto", "classic", "textual"],
-        default="auto",
-        help="UI mode: classic (Rich prompts) or textual (animated avatar panel) (default: auto)",
-    )
-    parser.add_argument(
-        "--frames-dir",
-        type=Path,
-        default=Path("assets/lain_frames"),
-        help="(textual UI) Folder containing 000.png, 001.png, ...",
-    )
-    parser.add_argument("--avatar-fps", type=float, default=10.0, help="(textual UI) Avatar FPS cap (default: 10)")
-    parser.add_argument("--avatar-width", type=int, default=32, help="(textual UI) Avatar width in characters")
-    parser.add_argument("--avatar-height", type=int, default=16, help="(textual UI) Avatar height in characters")
-    parser.add_argument(
-        "--avatar-backend",
-        choices=["auto", "rich_pixels", "braille", "halfblock"],
-        default="halfblock",
-        help="(textual UI) Avatar renderer backend (default: halfblock)",
-    )
     parser.add_argument("--no-codex", action="store_true", help="Disable Codex auto-fix prompts on errors")
     args = parser.parse_args(argv)
 
     initial_url = (args.url or "").strip() or None
     loop = initial_url is None and sys.stdin.isatty()
 
-    if args.ui == "textual" or (args.ui == "auto" and loop):
-        from .textual_app import run_textual
-
-        return run_textual(argv)
-
     console = Console()
 
     last_exit_code = 0
     while True:
         console.clear()
-        console.print(
-            Panel.fit(
-                "[bold]allinonescraper[/bold]\n"
-                f"Default mode: [bold]{args.mode}[/bold] | Output: [bold]{args.output}[/bold]\n"
-                "Paste a URL to download (blank to quit).",
-                border_style="cyan",
-            )
-        )
+        header = Table(title="allinonescraper", box=box.SIMPLE, show_header=False)
+        header.add_column("Session")
+        header.add_row(f"Default mode: {args.mode} | Output: {args.output}")
+        header.add_row("Paste a URL to download (blank to quit).")
+        console.print(header)
         _print_guide(console)
 
         url = initial_url
