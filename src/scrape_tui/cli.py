@@ -91,6 +91,15 @@ def _pick_video_option(console: Console, options) -> int:
     return choice - 1
 
 
+def _ask_compatibility_mode(console: Console) -> bool:
+    table = Table(title="Playback compatibility", box=box.SIMPLE, show_header=False)
+    table.add_column("Info", style="dim")
+    table.add_row("Enable compatibility mode to prefer H.264 (avc1) for easier playback in VLC.")
+    table.add_row("This may reduce max quality compared to VP9/AV1.")
+    console.print(table)
+    return Confirm.ask("Use compatibility mode?", default=False)
+
+
 def _error_panel(message: str) -> Table:
     table = Table(title="Error", box=box.SIMPLE, border_style="red", show_header=False)
     table.add_column("Details", style="red")
@@ -124,6 +133,7 @@ def _print_guide(console: Console) -> None:
     guide.add_row("Paste a URL and press Enter (blank URL exits)")
     guide.add_row("Choose (v)ideo to force video, (i)mages to force images, or (a)uto")
     guide.add_row("Video: pick a quality number; installing `ffmpeg` enables best-quality merges")
+    guide.add_row("Compatibility mode prefers H.264 for VLC-friendly playback")
     guide.add_row("Output: `downloads/<domain>/<timestamp>/` (change with `--output`)")
     guide.add_row("")
     guide.add_row("Line editing: Ctrl+Backspace / Ctrl+W delete word, Ctrl+U clears line")
@@ -191,10 +201,13 @@ def _download_once(console: Console, *, url: str, args, mode: str, interactive: 
 
                 options = build_video_options(info)
                 selected = options[_pick_video_option(console, options)]
+                format_selector = selected.format_selector
+                if interactive and _ask_compatibility_mode(console):
+                    format_selector = "bestvideo[vcodec^=avc1]+bestaudio/best[vcodec^=avc1]"
                 download_with_ytdlp(
                     url,
                     output_dir=output_dir,
-                    format_selector=selected.format_selector,
+                    format_selector=format_selector,
                     title=f"Downloading ({selected.label})",
                 )
                 console.print(f"[green]Saved to[/green] {output_dir}")
@@ -252,20 +265,29 @@ def main(argv: list[str] | None = None) -> int:
         header = Table(title="[bold cyan]allinonescraper[/bold cyan]", box=box.SIMPLE, show_header=False)
         header.add_column("Session")
         header.add_row(f"[green]Default mode[/green]: {args.mode} | [green]Output[/green]: {args.output}")
-        header.add_row("[dim]Choose an action from the menu below.[/dim]")
+        if initial_url is None:
+            header.add_row("[dim]Choose an action from the menu below.[/dim]")
+        else:
+            header.add_row("[dim]Running single download from CLI URL.[/dim]")
         console.print(header)
-        _print_menu(console)
+        if initial_url is None:
+            _print_menu(console)
 
         if initial_url is None:
-            choice = IntPrompt.ask("Select option", default=1)
+            try:
+                choice = IntPrompt.ask("Select option", default=1)
+            except EOFError:
+                return last_exit_code
             if choice == 3:
                 return last_exit_code
             if choice == 2:
                 _print_guide(console)
                 _pause(console)
                 continue
-        else:
-            choice = 1
+            if choice != 1:
+                console.print("[red]Invalid choice.[/red]")
+                _pause(console, "Press Enter to return to the menu...")
+                continue
 
         url = initial_url
         if url is None:
