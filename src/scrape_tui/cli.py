@@ -130,6 +130,16 @@ def _print_guide(console: Console) -> None:
     console.print(guide)
 
 
+def _print_menu(console: Console) -> None:
+    menu = Table(title="Menu", box=box.SIMPLE, show_header=False)
+    menu.add_column("Action", style="bold cyan")
+    menu.add_column("Description", style="dim")
+    menu.add_row("1", "Download from URL")
+    menu.add_row("2", "Help")
+    menu.add_row("3", "Quit")
+    console.print(menu)
+
+
 def _ask_download_mode(console: Console, *, default_mode: str) -> str:
     mapping = {
         "a": "auto",
@@ -239,12 +249,23 @@ def main(argv: list[str] | None = None) -> int:
     last_exit_code = 0
     while True:
         console.clear()
-        header = Table(title="allinonescraper", box=box.SIMPLE, show_header=False)
+        header = Table(title="[bold cyan]allinonescraper[/bold cyan]", box=box.SIMPLE, show_header=False)
         header.add_column("Session")
-        header.add_row(f"Default mode: {args.mode} | Output: {args.output}")
-        header.add_row("Paste a URL to download (blank to quit).")
+        header.add_row(f"[green]Default mode[/green]: {args.mode} | [green]Output[/green]: {args.output}")
+        header.add_row("[dim]Choose an action from the menu below.[/dim]")
         console.print(header)
-        _print_guide(console)
+        _print_menu(console)
+
+        if initial_url is None:
+            choice = IntPrompt.ask("Select option", default=1)
+            if choice == 3:
+                return last_exit_code
+            if choice == 2:
+                _print_guide(console)
+                _pause(console)
+                continue
+        else:
+            choice = 1
 
         url = initial_url
         if url is None:
